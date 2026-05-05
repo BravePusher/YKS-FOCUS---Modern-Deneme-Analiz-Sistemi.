@@ -17,6 +17,8 @@ export interface Exam {
   totalWrong: number;
   totalEmpty: number;
   net: number;
+  isBranch?: boolean;
+  branchName?: string;
 }
 
 export interface SubjectList {

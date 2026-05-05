@@ -23,7 +23,8 @@ import {
   Calendar,
   Filter,
   Moon,
-  Sun
+  Sun,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Exam, ExamType, QuestionEntry, QuestionStatus } from './types';
@@ -37,7 +38,7 @@ export default function App() {
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
   const [exams, setExams] = useState<Exam[]>([]);
-  const [view, setView] = useState<'dashboard' | 'add' | 'history' | 'analysis' | 'edit'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'add' | 'branch_add' | 'history' | 'analysis' | 'edit'>('dashboard');
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<ExamType | 'ALL'>('ALL');
   const [analysisType, setAnalysisType] = useState<ExamType>('TYT');
@@ -72,8 +73,8 @@ export default function App() {
 
   // Stats
   const stats = useMemo(() => {
-    const tytExams = exams.filter(e => e.type === 'TYT');
-    const aytExams = exams.filter(e => e.type === 'AYT');
+    const tytExams = exams.filter(e => e.type === 'TYT' && !e.isBranch);
+    const aytExams = exams.filter(e => e.type === 'AYT' && !e.isBranch);
 
     const calculateAvg = (list: Exam[]) => {
       if (list.length === 0) return 0;
@@ -179,6 +180,12 @@ export default function App() {
             label="Deneme Ekle" 
           />
           <SidebarBtn 
+            active={view === 'branch_add'} 
+            onClick={() => setView('branch_add')} 
+            icon={<BookOpen />} 
+            label="Branş Deneme" 
+          />
+          <SidebarBtn 
             active={view === 'analysis'} 
             onClick={() => setView('analysis')} 
             icon={<TrendingUp />} 
@@ -207,22 +214,33 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="p-6 md:p-8 flex justify-between items-center bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm sticky top-0 z-20 border-b dark:border-slate-800/50">
-          <h1 className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
-            {view === 'dashboard' ? 'Genel Bakış' : view === 'add' ? 'Deneme Ekle' : view === 'analysis' ? 'Konu Analizi' : view === 'edit' ? 'Deneme Düzenle' : 'Geçmiş Denemeler'}
-          </h1>
-          <div className="hidden md:flex items-center space-x-6">
+        <header className="p-4 md:p-8 flex justify-between items-center bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm sticky top-0 z-20 border-b dark:border-slate-800/50">
+          <div className="flex flex-col">
+            <div className="md:hidden text-[10px] font-black text-brand italic tracking-tight mb-1 uppercase">YKS FOCUS</div>
+            <h1 className="text-xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+              {view === 'dashboard' ? 'Genel Bakış' : 
+               view === 'add' ? 'Deneme Ekle' : 
+               view === 'branch_add' ? 'Branş Denemesi' :
+               view === 'analysis' ? 'Konu Analizi' : 
+               view === 'edit' ? 'Deneme Düzenle' : 
+               'Geçmiş Denemeler'}
+            </h1>
+          </div>
+          
+          <div className="flex items-center space-x-3 md:space-x-6">
             <button 
               onClick={() => setIsDark(prev => !prev)}
-              className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 text-slate-500 transition-all hover:scale-110 active:scale-95"
+              className="p-2 md:p-3 bg-white dark:bg-slate-800 rounded-xl md:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 text-slate-500 transition-all hover:scale-110"
             >
-              {isDark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+              {isDark ? <Sun className="w-4 h-4 md:w-5 md:h-5 text-amber-400" /> : <Moon className="w-4 h-4 md:w-5 md:h-5 text-slate-600" />}
             </button>
-            <div className="text-right text-sm">
+            
+            <div className="hidden md:block text-right text-sm">
               <div className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Toplam Net</div>
               <div className="text-xl font-black text-slate-900 dark:text-white">{(stats.tytAvg + stats.aytAvg).toFixed(2)}</div>
             </div>
-            <div className="w-12 h-12 rounded-full bg-slate-900 dark:bg-brand flex items-center justify-center text-white font-black">
+            
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-900 dark:bg-brand flex items-center justify-center text-white font-black text-sm md:text-base">
               {stats.total}
             </div>
           </div>
@@ -373,6 +391,7 @@ export default function App() {
                 >
                   <ExamForm 
                     initialData={view === 'edit' ? exams.find(e => e.id === editingExamId) : undefined}
+                    onSwitchToBranch={() => setView('branch_add')}
                     onSave={(exam) => {
                       if (view === 'edit') {
                         setExams(exams.map(e => e.id === exam.id ? exam : e));
@@ -385,6 +404,25 @@ export default function App() {
                     onCancel={() => {
                       setView('dashboard');
                       setEditingExamId(null);
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {view === 'branch_add' && (
+                <motion.div 
+                  key="branch_add"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <BranchExamForm 
+                    onSave={(exam) => {
+                      setExams([exam, ...exams]);
+                      setView('dashboard');
+                    }} 
+                    onCancel={() => {
+                      setView('dashboard');
                     }}
                   />
                 </motion.div>
@@ -428,32 +466,46 @@ export default function App() {
         </div>
 
         {/* Mobile Bottom Nav */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t dark:border-slate-800 px-6 py-3 z-50">
-          <div className="flex items-center justify-around max-w-md mx-auto">
-            <NavButton 
-              active={view === 'dashboard'} 
-              onClick={() => setView('dashboard')} 
-              icon={<LayoutDashboard />} 
-              label="Panel" 
-            />
-            <NavButton 
-              active={view === 'analysis'} 
-              onClick={() => setView('analysis')} 
-              icon={<TrendingUp />} 
-              label="Analiz" 
-            />
-            <button 
-              onClick={() => setView('add')}
-              className={`-mt-12 w-16 h-16 rounded-[2rem] flex items-center justify-center shadow-2xl transition-transform active:scale-90 ${view === 'add' ? 'bg-brand text-white' : 'bg-slate-900 text-white'}`}
-            >
-              <Plus className="w-8 h-8" />
-            </button>
-            <NavButton 
-              active={view === 'history'} 
-              onClick={() => setView('history')} 
-              icon={<History />} 
-              label="Geçmiş" 
-            />
+        <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-slate-800/50 rounded-3xl shadow-2xl shadow-indigo-100 dark:shadow-black/40 px-2 py-2 flex items-center justify-between">
+            <div className="flex flex-1 justify-evenly items-center">
+              <NavButton 
+                active={view === 'dashboard'} 
+                onClick={() => setView('dashboard')} 
+                icon={<LayoutDashboard />} 
+                label="Panel" 
+              />
+              <NavButton 
+                active={view === 'branch_add'} 
+                onClick={() => setView('branch_add')} 
+                icon={<BookOpen />} 
+                label="Branş" 
+              />
+            </div>
+
+            <div className="w-16 flex justify-center -mt-10">
+              <button 
+                onClick={() => setView('add')}
+                className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95 border-4 border-[#F8FAFC] dark:border-slate-900 ${view === 'add' ? 'bg-brand text-white shadow-brand/40' : 'bg-slate-900 text-white shadow-black/20'}`}
+              >
+                <Plus className="w-7 h-7" />
+              </button>
+            </div>
+
+            <div className="flex flex-1 justify-evenly items-center">
+              <NavButton 
+                active={view === 'analysis'} 
+                onClick={() => setView('analysis')} 
+                icon={<TrendingUp />} 
+                label="Analiz" 
+              />
+              <NavButton 
+                active={view === 'history'} 
+                onClick={() => setView('history')} 
+                icon={<Calendar />} 
+                label="Liste" 
+              />
+            </div>
           </div>
         </div>
       </main>
@@ -520,7 +572,12 @@ function ExamRow({ exam, onDelete, onEdit, showDetails = false }: ExamRowProps) 
             {exam.type}
           </div>
           <div>
-            <h3 className="font-black text-sm uppercase tracking-tight dark:text-white">{exam.title}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-black text-sm uppercase tracking-tight dark:text-white">{exam.title}</h3>
+              {exam.isBranch && (
+                <span className="px-2 py-0.5 bg-brand text-white text-[8px] font-black rounded-md uppercase tracking-wider">Branş</span>
+              )}
+            </div>
             <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
               <Calendar className="w-3 h-3" /> {new Date(exam.date).toLocaleDateString('tr-TR')}
             </p>
@@ -605,7 +662,205 @@ function ExamRow({ exam, onDelete, onEdit, showDetails = false }: ExamRowProps) 
   );
 }
 
-function ExamForm({ onSave, onCancel, initialData }: { onSave: (exam: Exam) => void, onCancel: () => void, initialData?: Exam }) {
+function BranchExamForm({ onSave, onCancel }: { onSave: (exam: Exam) => void, onCancel: () => void }) {
+  const [type, setType] = useState<ExamType | null>(null);
+  const [selectedSectionIdx, setSelectedSectionIdx] = useState<number | null>(null);
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [questions, setQuestions] = useState<QuestionEntry[]>([]);
+
+  const sections = type === 'TYT' ? TYT_SECTIONS : AYT_SECTIONS;
+  const activeSection = selectedSectionIdx !== null ? sections[selectedSectionIdx] : null;
+
+  useEffect(() => {
+    if (!activeSection) {
+      setQuestions([]);
+      return;
+    }
+    setQuestions(Array(activeSection.count).fill(null).map(() => ({
+      status: 'correct',
+      subject: '',
+      note: ''
+    })));
+  }, [activeSection]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !type || !activeSection) {
+       alert("Lütfen deneme adı, türü ve branş seçin.");
+       return;
+    }
+
+    const correct = questions.filter(q => q.status === 'correct').length;
+    const wrong = questions.filter(q => q.status === 'wrong').length;
+    const empty = questions.filter(q => q.status === 'empty').length;
+    const net = correct - (wrong * 0.25);
+
+    onSave({
+      id: crypto.randomUUID(),
+      title: `${type} ${activeSection.name}: ${title}`,
+      date,
+      type,
+      isBranch: true,
+      branchName: activeSection.name,
+      questions,
+      totalCorrect: correct,
+      totalWrong: wrong,
+      totalEmpty: empty,
+      net
+    });
+  };
+
+  const updateQuestion = (index: number, updates: Partial<QuestionEntry>) => {
+    const updated = [...questions];
+    updated[index] = { ...updated[index], ...updates };
+    setQuestions(updated);
+  };
+
+  if (!type) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="text-center space-y-2">
+          <h2 className="text-4xl font-black tracking-tight uppercase dark:text-white">BRANŞ KATEGORİSİ</h2>
+          <p className="text-slate-400 font-medium">Hangi grup branş denemesi eklemek istiyorsunuz?</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <button 
+            onClick={() => setType('TYT')}
+            className="group relative bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 p-10 rounded-[2.5rem] shadow-sm hover:border-brand hover:shadow-xl transition-all text-left overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/20 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative z-10 space-y-4">
+              <div className="w-14 h-14 bg-brand text-white rounded-2xl flex items-center justify-center font-black text-xl">TYT</div>
+              <h3 className="text-2xl font-black uppercase tracking-tight dark:text-white text-brand">TYT BRANŞ</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Türkçe, Sosyal, Matematik, Fen</p>
+            </div>
+          </button>
+          <button 
+            onClick={() => setType('AYT')}
+            className="group relative bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 p-10 rounded-[2.5rem] shadow-sm hover:border-orange-500 hover:shadow-xl transition-all text-left overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 dark:bg-orange-900/20 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative z-10 space-y-4">
+              <div className="w-14 h-14 bg-orange-500 text-white rounded-2xl flex items-center justify-center font-black text-xl">AYT</div>
+              <h3 className="text-2xl font-black uppercase tracking-tight dark:text-white text-orange-600">AYT BRANŞ</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Matematik, Fen Bilimleri</p>
+            </div>
+          </button>
+        </div>
+        <div className="text-center pt-8">
+          <button onClick={onCancel} className="text-slate-400 font-bold uppercase tracking-widest text-xs hover:text-slate-600">Vazgeç ve Geri Dön</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedSectionIdx === null) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setType(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+            <Plus className="w-5 h-5 rotate-45" />
+          </button>
+          <h2 className="text-3xl font-black tracking-tight uppercase italic dark:text-white">{type} Branş Seçin</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {sections.map((section, idx) => (
+            <button 
+              key={idx}
+              onClick={() => setSelectedSectionIdx(idx)}
+              className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-brand transition-all text-left flex items-center justify-between group"
+            >
+              <div>
+                <h4 className="font-black text-lg uppercase tracking-tight dark:text-white">{section.name}</h4>
+                <p className="text-xs text-slate-400">{section.count} Soru</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand transition-colors" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm max-w-4xl mx-auto mb-10 overflow-hidden">
+      <div className="flex items-center justify-between gap-6 mb-10">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setSelectedSectionIdx(null)}
+            className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors group"
+          >
+            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-black dark:group-hover:text-white transition-colors">
+              <Plus className="w-5 h-5 rotate-45" />
+            </div>
+          </button>
+          <h2 className="text-3xl font-black tracking-tight uppercase italic dark:text-white">{type} {activeSection.name}</h2>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Branş Deneme Adı</label>
+            <input 
+              type="text" 
+              value={title} 
+              onChange={e => setTitle(e.target.value)} 
+              placeholder="Örn: Limit-1, Bilgi Sarmal vb."
+              className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-800 transition-all rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none dark:text-white"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Sınav Tarihi</label>
+            <input 
+              type="date" 
+              value={date} 
+              onChange={e => setDate(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-800 transition-all rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none dark:text-white"
+            />
+          </div>
+        </div>
+
+        <div className="bg-slate-50/50 dark:bg-slate-900/50 rounded-[2rem] p-6 max-h-[600px] overflow-y-auto border border-slate-100 dark:border-slate-800 relative">
+          <div className="mb-4">
+            <h3 className="text-sm font-black text-brand uppercase tracking-[0.2em]">{activeSection.name} <span className="text-slate-400 font-bold">({activeSection.count} Soru)</span></h3>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {questions.map((q, qIdx) => (
+              <QuestionItem 
+                key={qIdx}
+                index={qIdx}
+                globalIndex={qIdx}
+                entry={q}
+                subjects={activeSection.subjects}
+                onChange={(updates) => updateQuestion(qIdx, updates)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-4 pt-6">
+          <button 
+            type="submit"
+            className="w-full sm:flex-1 bg-brand text-white font-black py-5 rounded-[2rem] shadow-xl dark:shadow-none hover:scale-[1.02] transition-all active:scale-95 uppercase tracking-widest"
+          >
+            Branş Denemesini Kaydet
+          </button>
+          <button 
+            type="button" 
+            onClick={onCancel}
+            className="w-full sm:w-auto px-10 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black py-5 rounded-[2rem] hover:bg-slate-200 dark:hover:bg-slate-600 transition-all uppercase tracking-widest text-xs"
+          >
+            Vazgeç
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ExamForm({ onSave, onCancel, onSwitchToBranch, initialData }: { onSave: (exam: Exam) => void, onCancel: () => void, onSwitchToBranch?: () => void, initialData?: Exam }) {
   const [type, setType] = useState<ExamType | null>(initialData?.type || null);
   const [title, setTitle] = useState(initialData?.title || '');
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
@@ -721,7 +976,7 @@ function ExamForm({ onSave, onCancel, initialData }: { onSave: (exam: Exam) => v
           </button>
           <button 
             onClick={() => setType('AYT')}
-            className="group relative bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 p-10 rounded-[2.5rem] shadow-sm hover:border-orange-500 hover:shadow-xl hover:shadow-orange-100 dark:hover:shadow-orange-900/20 transition-all text-left overflow-hidden"
+            className="group relative bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 p-10 rounded-[2.5rem] shadow-sm hover:border-orange-500 hover:shadow-xl hover:shadow-orange-100 dark:hover:shadow-indigo-900/20 transition-all text-left overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 dark:bg-orange-900/20 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
             <div className="relative z-10 space-y-4">
@@ -734,8 +989,18 @@ function ExamForm({ onSave, onCancel, initialData }: { onSave: (exam: Exam) => v
             </div>
           </button>
         </div>
-        <div className="text-center pt-8">
-          <button onClick={onCancel} className="text-slate-400 font-bold uppercase tracking-widest text-xs hover:text-slate-600">Vazgeç ve Geri Dön</button>
+        <div className="text-center pt-8 space-y-4">
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ya da sadece tek bir branş mi eklemek istiyorsun?</p>
+          <button 
+            type="button"
+            onClick={onSwitchToBranch}
+            className="px-8 py-3 bg-slate-900 dark:bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-transform"
+          >
+            Branş Denemesi Ekle
+          </button>
+          <div className="pt-2">
+            <button onClick={onCancel} className="text-slate-400 font-bold uppercase tracking-widest text-[10px] hover:text-slate-600">Vazgeç ve Geri Dön</button>
+          </div>
         </div>
       </div>
     );
